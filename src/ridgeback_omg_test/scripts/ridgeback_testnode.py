@@ -46,60 +46,78 @@ import time
 import numpy as np
 from cv2 import circle
 from mercurial.bundlerepo import instance
-
+import tf
 pub = rospy.Publisher('cmd_vel', Twist, queue_size=1000)  # Publisher('topic', 'topic type', queue_size)
 speed = Twist()
 state = ModelStates()
-
-
-
-	
-
-	
-
 						
 class ridgeback_omg_control:
 	def __init__(self):
 		self.pose_x=0.0
 		self.pose_y=0.0
 		self.obstacles=[]
+		self.subscriber.pos = rospy.Subscriber('/gazebo/model_states', ModelStates, self.callback_state) # Subscriber('topic', 'message type', callback)
+		self.subscriber.obs = rospy.Subscriber('obstacle_pose',std_msgs.msg.Float32MultiArray,self.callback_dynamic)
+		
+		rospy.init_node('ridgeback_omg_control', anonymous=True) # initialize node 'ridgeback_subs'
+		rate = rospy.Rate(100)  # 100hz publishing rate
+		
+		# create vehicle
+		vehicle = Holonomic(Rectangle(0.793,0.96)) #Approximate Ridgeback as rectangle
+
+		vehicle.set_options({'safety_distance': 0.1})
+		vehicle.set_options({'ideal_prediction': False})
+		vehicle.set_initial_conditions([0, 0]) #vehicle.set_initial_conditions([-1.5, -1.5])
+		vehicle.set_terminal_conditions([2., 2.])
+		self.vehicle=vehicle
+
+		options = {}
+		options['codegen'] = {'build': None}
+ 		
+ 		# create a point-to-point problem
+		problem = Point2point(vehicle, environment, options, freeT=False)
+		# problem.set_options({'solver_options': {'ipopt': {'ipopt.linear_solver': 'ma57'}}})
+		problem.init()
+		
+		# create deployer
+		update_time = 0.1
+		sample_time = 0.01
+		deployer = Deployer(problem, sample_time, update_time)
+		
+		via_points = [[2., 2.]]	
+ 
+		current_time = 0
+		current_state = [0, 0]#current_state = [-1.5, -1.5]
+		state_traj = np.c_[current_state]
+		input_traj = np.c_[[0.0, 0.0]]
+ 
+		n_samp = int(np.round(update_time / sample_time, 6))
+	
 	def callback_state(self,state):
 		self.pose_x = state.pose[1].position.x
 		self.pose_y = state.pose[1].position.y
+#nog niet getest
+		euler = tf.transformations.euler_from_quaternion(state.pose[1].orientation.x,state.pose[1].orientation.y,state.pose[1].orientation.z,state.pose[1].orientation.w)
+		self.th = euler[2]
+		self.vel_x=state.twist[1].linear.x
+		self.vel_y=state.twist[1].linear.y 
+	
 		
 	def callback_dynamic(self,dyn_obs):
 		#msg.data = np.array([xc, yc, radius, x_est_k[1][0], x_est_k[3][0]])
 	
-	 	#only for 1 object and it has to be a circle
-		self.obstacles=
+		#only for 1 object and it has to be a circle
+		self.obstacles=[]
 		self.x_pos_obj=dyn_obs[0]
 		y_pos_obj=dyn_obs[1]
 		radius_obj=dyn_obs[2]
 		x_speed_obj=dyn_obs[3]
 		y_speed_obj=dyn_obs[4]
 		self.obstacles.append(Circle(0,0,3));
-	def delete_existing_dynamic_obstacle(self,number_dynamic_obstacles):
-		for i in range(number_dynamic_obstacles):
-			environment.obstacles.pop() #laatste is het dynamische obstakel, voorlopig nog maar 1 dynamisch
-
-	rospy.init_node('ridgeback_omg_control', anonymous=True) # initialize node 'ridgeback_subs'
-	rate = rospy.Rate(100)  # 100hz publishing rate
-	rospy.Subscriber('/gazebo/model_states', ModelStates, callback_state) # Subscriber('topic', 'message type', callback)
- 	#rospy.Subscriber('',std_msgs.msg.Float32MultiArray,callback_static)
- 	rospy.Subscriber('obstacle_pose',std_msgs.msg.Float32MultiArray,callback_dynamic)
-	# create vehicle
-	vehicle = Holonomic()
-	vehicle.set_options({'safety_distance': 0.1})
-	vehicle.set_options({'ideal_prediction': False})
-	vehicle.set_initial_conditions([0, 0]) #vehicle.set_initial_conditions([-1.5, -1.5])
-	vehicle.set_terminal_conditions([2., 2.])
- 	
-	options = {}
-	options['codegen'] = {'build': None}
- 	
-	# create deployer
-	update_time = 0.1
-	sample_time = 0.01
+		
+#	def delete_existing_dynamic_obstacle(self,number_dynamic_obstacles):
+#		for i in range(number_dynamic_obstacles):
+#			environment.obstacles.pop() #laatste is het dynamische obstakel, voorlopig nog maar 1 dynamisch
 		
 	# create environment
 	environment = Environment(room={'shape': Rectangle(10., 5.)})
@@ -110,23 +128,9 @@ class ridgeback_omg_control:
 	# Obstacle
 	read_x_speed=.15
 	read_y_speed=0.0
-	
-	# create a point-to-point problem
-	problem = Point2point(vehicle, environment, options, freeT=False)
-	# problem.set_options({'solver_options': {'ipopt': {'ipopt.linear_solver': 'ma57'}}})
-	problem.init()
-	deployer = Deployer(problem, sample_time, update_time)
  
 	# simulation of a motion planning application: go through 3 via points, while
 	# an obstacle is changing position
-	via_points = [[2., 2.]]	
- 
-	current_time = 0
-	current_state = [0, 0]#current_state = [-1.5, -1.5]
-	state_traj = np.c_[current_state]
-	input_traj = np.c_[[0.0, 0.0]]
- 
-	n_samp = int(np.round(update_time / sample_time, 6))
 	t00 = time.time()
  
 	target_reached = False
@@ -141,20 +145,20 @@ class ridgeback_omg_control:
 			while not target_reached:
 				t0 = time.time() - t00 #update time
 				#update all dynamic obstacles by deleting and adding because there is no updating
-				DELETE ALL EXISTING DYNAMIC OBSTACLES
-				for OBJ in dyn_obstacles:
-					trajectory = {'velocity': {'time': [time.time()], 'values': [[OBJ.x_speed,OBJ.y_speed]]}}
-					simulation = {'trajectories': trajectory}
-					if OBJ==circle:
-						environment.add_obstacle(Obstacle({'position': [OBJ.x_pos, OBJ.y_pos]}, shape=Circle(OBJ.radius),
-                                  simulation=simulation))
-					elif OBJ==rectangle:
-						environment.add_obstacle(Obstacle({'position': [OBJ.x_pos, OBJ.y_pos]}, shape=Rectangle(OBJ.width,OBJ.height,OBJ.orientation),
-                                  simulation=simulation))
-						
-					
-				environment.obstacles.pop() #laatste is het dynamische obstakel, voorlopig nog maar 1 dynamisch
-				time.sleep(5)
+#				DELETE ALL EXISTING DYNAMIC OBSTACLES
+# 				for OBJ in dyn_obstacles:
+# 					trajectory = {'velocity': {'time': [time.time()], 'values': [[OBJ.x_speed,OBJ.y_speed]]}}
+# 					simulation = {'trajectories': trajectory}
+# 					if OBJ==circle:
+# 						environment.add_obstacle(Obstacle({'position': [OBJ.x_pos, OBJ.y_pos]}, shape=Circle(OBJ.radius),
+#                                   simulation=simulation))
+# 					elif OBJ==rectangle:
+# 						environment.add_obstacle(Obstacle({'position': [OBJ.x_pos, OBJ.y_pos]}, shape=Rectangle(OBJ.width,OBJ.height,OBJ.orientation),
+#                                   simulation=simulation))
+# 						
+# 					
+# 				environment.obstacles.pop() #laatste is het dynamische obstakel, voorlopig nog maar 1 dynamisch
+# 				time.sleep(5)
 				
 				
 				
