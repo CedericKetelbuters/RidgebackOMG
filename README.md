@@ -1,2 +1,2 @@
-# Ridgeback_omg
+# RidgebackOMG
 # RidgebackOMG
