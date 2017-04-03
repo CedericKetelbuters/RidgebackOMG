@@ -51,7 +51,7 @@ pub = rospy.Publisher('cmd_vel', Twist, queue_size=1000)  # Publisher('topic', '
 speed = Twist()
 state = ModelStates()
 
-
+Tetten
 def callback_state(state):
 	global pose_x
 	global pose_y
