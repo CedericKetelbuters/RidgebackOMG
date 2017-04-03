@@ -51,46 +51,39 @@ pub = rospy.Publisher('cmd_vel', Twist, queue_size=1000)  # Publisher('topic', '
 speed = Twist()
 state = ModelStates()
 
-Tetten
-def callback_state(state):
-	global pose_x
-	global pose_y
-	pose_x = state.pose[1].position.x
-	pose_y = state.pose[1].position.y
+
+
 	
-def callback_static(static_obs): 
-	pass
-def callback_dynamic(dyn_obs):
-	#msg.data = np.array([xc, yc, radius, x_est_k[1][0], x_est_k[3][0]])
+
 	
-	global x_pos_obj
-	global y_pos_obj
-	global radius_obj
-	global x_speed_obj
-	global y_speed_obj #only for 1 object and it has to be a circle
-	x_pos_obj=dyn_obs[0]
-	y_pos_obj=dyn_obs[1]
-	radius_obj=dyn_obs[2]
-	x_speed_obj=dyn_obs[3]
-	y_speed_obj=dyn_obs[4]
-	
-	
-def delete_existing_dynamic_obstacle(number_dynamic_obstacles):
-	for i in range(number_dynamic_obstacles):
-		environment.obstacles.pop() #laatste is het dynamische obstakel, voorlopig nog maar 1 dynamisch
+
 						
-def ridgeback_omg_control():
-	global pose_x
-	global pose_y
+class ridgeback_omg_control:
+	def __init__(self):
+		self.pose_x=0.0
+		self.pose_y=0.0
+		self.obstacles=[]
+	def callback_state(self,state):
+		self.pose_x = state.pose[1].position.x
+		self.pose_y = state.pose[1].position.y
+		
+	def callback_dynamic(self,dyn_obs):
+		#msg.data = np.array([xc, yc, radius, x_est_k[1][0], x_est_k[3][0]])
 	
-	global x_pos_obj
-	global y_pos_obj
-	global radius_obj
-	global x_speed_obj
-	global y_speed_obj #only for 1 object and it has to be a circle
- 
+	 	#only for 1 object and it has to be a circle
+		self.obstacles=
+		self.x_pos_obj=dyn_obs[0]
+		y_pos_obj=dyn_obs[1]
+		radius_obj=dyn_obs[2]
+		x_speed_obj=dyn_obs[3]
+		y_speed_obj=dyn_obs[4]
+		self.obstacles.append(Circle(0,0,3));
+	def delete_existing_dynamic_obstacle(self,number_dynamic_obstacles):
+		for i in range(number_dynamic_obstacles):
+			environment.obstacles.pop() #laatste is het dynamische obstakel, voorlopig nog maar 1 dynamisch
+
 	rospy.init_node('ridgeback_omg_control', anonymous=True) # initialize node 'ridgeback_subs'
-	rate = rospy.Rate(100)  # 100hz is dees publishing rate???
+	rate = rospy.Rate(100)  # 100hz publishing rate
 	rospy.Subscriber('/gazebo/model_states', ModelStates, callback_state) # Subscriber('topic', 'message type', callback)
  	#rospy.Subscriber('',std_msgs.msg.Float32MultiArray,callback_static)
  	rospy.Subscriber('obstacle_pose',std_msgs.msg.Float32MultiArray,callback_dynamic)
@@ -137,7 +130,7 @@ def ridgeback_omg_control():
 	t00 = time.time()
  
 	target_reached = False
-	saved = True
+	saved = True #dit is voor plottingpurposes
 	while not rospy.is_shutdown():
 		speed = Twist()  # make Twist object speed
 		for via_point in (via_points):
@@ -206,7 +199,7 @@ def ridgeback_omg_control():
 						target_reached = True
 						print('Target reached, max iterations...')
  
-		if not saved:
+		if not saved: #dit is gewoon voor plotting purposes
 			xpos = np.array(state_traj[0,:])
 			ypos = np.array(state_traj[1,:])
 			xspeed = np.array(input_traj[0,:])
