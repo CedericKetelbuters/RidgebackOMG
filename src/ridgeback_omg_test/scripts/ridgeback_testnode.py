@@ -50,6 +50,7 @@ import tf
 pub = rospy.Publisher('cmd_vel', Twist, queue_size=1000)  # Publisher('topic', 'topic type', queue_size)
 speed = Twist()
 state = ModelStates()
+
 class circle:
         def __init__(self,x,y,r,x_vel,y_vel):
                 self.x=x
@@ -225,6 +226,7 @@ class ridgeback_omg_control:
          
         #       # spin() simply keeps python from exiting until this node is stopped
                 rospy.spin()
+
 
 if __name__ == '__main__':
         try:
