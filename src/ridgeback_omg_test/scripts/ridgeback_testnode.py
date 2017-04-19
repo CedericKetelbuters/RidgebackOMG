@@ -51,7 +51,7 @@ pub = rospy.Publisher('cmd_vel', Twist, queue_size=1000)  # Publisher('topic', '
 speed = Twist()
 state = ModelStates()
 
-class circle:
+class circle_obs:
         def __init__(self,x,y,r,x_vel,y_vel):
                 self.x=x
                 self.y=y
@@ -66,10 +66,8 @@ class ridgeback_omg_control:
                 self.subscriber_pos = rospy.Subscriber('/gazebo/model_states', ModelStates, self.callback_state) # Subscriber('topic', 'message type', callback)
                 self.subscriber_obs = rospy.Subscriber('obstacle_pose',std_msgs.msg.Float32MultiArray,self.callback_dynamic)
                 
-                
-                
                 # create vehicle hier steeds aanpassen
-                vehicle = Holonomic() #Approximate Ridgeback as rectangle with orientation 0 :Rectangle(0.793,0.96)
+                vehicle = Holonomic(Circle(.466)) #Approximate Ridgeback as rectangle with orientation 0 :Rectangle(0.793,0.96)
                 vehicle.set_options({'safety_distance': 0.1})
                 vehicle.set_options({'ideal_prediction': False})
                 vehicle.set_initial_conditions([0, 0]) #vehicle.set_initial_conditions([-1.5, -1.5])
@@ -81,8 +79,8 @@ class ridgeback_omg_control:
                 #initialize environment
                 self.environment = Environment(room={'shape': Rectangle(10., 5.)})
                 rectangle = Rectangle(width=3., height=0.2)
-                #self.stat_obs=[Obstacle({'position': [-2.1, 0.5]}, shape=rectangle),Obstacle({'position': [1.0, 0.5]}, shape=rectangle)]
-                #self.environment.add_obstacle(self.stat_obs)
+                self.stat_obs=[Obstacle({'position': [-3, 1.0]}, shape=rectangle),Obstacle({'position': [2, 1.0]}, shape=rectangle)]
+                self.environment.add_obstacle(self.stat_obs)
                 
                 # create a point-to-point problem
                 self.problem = Point2point(self.vehicle, self.environment, options, freeT=False)
@@ -118,7 +116,7 @@ class ridgeback_omg_control:
         
                 self.dyn_obstacles=[]
                 for obs in dyn_obs:
-                        self.dyn_obstacles.append(circle(dyn_obs[0],dyn_obs[1],dyn_obs[2],dyn_obs[3],dyn_obs[4]))
+                        self.dyn_obstacles.append(circle_obs(dyn_obs[0],dyn_obs[1],dyn_obs[2],dyn_obs[3],dyn_obs[4]))
                 #environment updaten in lus zelf
                         
                 
@@ -134,10 +132,10 @@ class ridgeback_omg_control:
                 
                 #remove obstacles or load everything again, maybe do it every other iteration 
                 # Obstacle
-                rectangle = Rectangle(width=3., height=0.2)
-                self.environment.add_obstacle(Obstacle({'position': [-2.1, 0.5]}, shape=rectangle))
-                self.environment.add_obstacle(Obstacle({'position': [1.7, 0.5]}, shape=rectangle))
-                self.problem.init()
+                #rectangle = Rectangle(width=3., height=0.2)
+                #self.environment.add_obstacle(Obstacle({'position': [-2.1, 0.5]}, shape=rectangle))
+                #self.environment.add_obstacle(Obstacle({'position': [1.7, 0.5]}, shape=rectangle))
+                #self.problem.init()
                 
                 # simulation of a motion planning application: go through 3 via points, while
                 # an obstacle is changing position
@@ -159,9 +157,9 @@ class ridgeback_omg_control:
                                         t0 = time.time() - t00
 ##                                      update position/ environment dit moet in tijdelijke variabelen want anders kan binnen 1 berekening de positie of environment verandere
                                         #self.environment.obstacles=[]
-                                        print self.environment.obstacles[0]
+   #                                     print self.environment.obstacles[0]
                                         #self.environment.obstacles=self.stat_obs+self.dyn_obstacles
-                                        print self.environment.obstacles
+   #                                     print self.environment.obstacles
                                         #time.sleep(5)
                                         #update all dynamic obstacles by deleting and adding because there is no updating
         #                               DELETE ALL EXISTING DYNAMIC OBSTACLES
@@ -178,9 +176,7 @@ class ridgeback_omg_control:
         #                                       
         #                               environment.obstacles.pop() #laatste is het dynamische obstakel, voorlopig nog maar 1 dynamisch
         #                               time.sleep(5)
-                                        
-                                        
-                                        
+
                                         if (t0 - self.current_time -self.update_time) >= 0.:
                                                 self.current_time = t0
                                                 # 'measure' current state (here ideal trajectory following is simulated)
@@ -192,8 +188,8 @@ class ridgeback_omg_control:
         #                                               self.current_state = [pose_x, pose_y]
                                                         #self.current_state = state_traj[:, 0]
                                                 # update motion planning
-                                                print "print"
-                                                print self.deployer.problem.environment.obstacles
+                 #                               print "print"
+                  #                              print self.deployer.problem.environment.obstacles
                                                 trajectories = self.deployer.update(self.current_time, self.current_state)
          
                                                 # store state & input trajectories -> simulation of ideal trajectory following
@@ -242,7 +238,6 @@ class ridgeback_omg_control:
                         rate.sleep()      
         #       # spin() simply keeps python from exiting until this node is stopped
                 rospy.spin()
-
 
 if __name__ == '__main__':
         try:
