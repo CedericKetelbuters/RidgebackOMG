@@ -90,7 +90,7 @@ def ridgeback_omg_control():
  	
 	simulation = {'trajectories': trajectory}
  	
-	environment.add_obstacle(Obstacle({'position': [1.5, 0.5]}, shape=Circle(0.4), simulation=simulation))
+	#environment.add_obstacle(Obstacle({'position': [1.5, 0.5]}, shape=Circle(0.4), simulation=simulation))
 	# create a point-to-point problem
 	problem = Point2point(vehicle, environment, options, freeT=False)
 	# problem.set_options({'solver_options': {'ipopt': {'ipopt.linear_solver': 'ma57'}}})
@@ -131,6 +131,8 @@ def ridgeback_omg_control():
 # 						current_state = [pose_x, pose_y]
 						#current_state = state_traj[:, 0]
 					# update motion planning
+					print deployer.problem.environment.obstacles
+					print "teet"
 					trajectories = deployer.update(current_time, current_state)
  
 					# store state & input trajectories -> simulation of ideal trajectory following
@@ -142,8 +144,8 @@ def ridgeback_omg_control():
 					y_speed = input_traj[1, -1]
  			
 					# publish speed
-					speed.linear.x = x_speed
-					speed.linear.y = y_speed	
+					speed.linear.x = 1.0#x_speed
+					speed.linear.y = 0.0#y_speed	
 					rospy.loginfo(speed)
 					pub.publish(speed)
 					rate.sleep()

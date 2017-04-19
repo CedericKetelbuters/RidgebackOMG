@@ -65,11 +65,11 @@ class ridgeback_omg_control:
                 self.dyn_obstacles=[]
                 self.subscriber_pos = rospy.Subscriber('/gazebo/model_states', ModelStates, self.callback_state) # Subscriber('topic', 'message type', callback)
                 self.subscriber_obs = rospy.Subscriber('obstacle_pose',std_msgs.msg.Float32MultiArray,self.callback_dynamic)
-                self.stat_obs
+                
                 
                 
                 # create vehicle hier steeds aanpassen
-                vehicle = Holonomic(Rectangle(0.793,0.96)) #Approximate Ridgeback as rectangle with orientation 0
+                vehicle = Holonomic() #Approximate Ridgeback as rectangle with orientation 0 :Rectangle(0.793,0.96)
                 vehicle.set_options({'safety_distance': 0.1})
                 vehicle.set_options({'ideal_prediction': False})
                 vehicle.set_initial_conditions([0, 0]) #vehicle.set_initial_conditions([-1.5, -1.5])
@@ -78,32 +78,36 @@ class ridgeback_omg_control:
                 #initialize problem
                 options = {}
                 options['codegen'] = {'build': None}
+                #initialize environment
+                self.environment = Environment(room={'shape': Rectangle(10., 5.)})
+                rectangle = Rectangle(width=3., height=0.2)
+                #self.stat_obs=[Obstacle({'position': [-2.1, 0.5]}, shape=rectangle),Obstacle({'position': [1.0, 0.5]}, shape=rectangle)]
+                #self.environment.add_obstacle(self.stat_obs)
                 
                 # create a point-to-point problem
-                problem = Point2point(vehicle, environment, options, freeT=False)
-                problem.init()
+                self.problem = Point2point(self.vehicle, self.environment, options, freeT=False)
+                self.problem.init()
                 # problem.set_options({'solver_options': {'ipopt': {'ipopt.linear_solver': 'ma57'}}})
                 
-                
                 # create deployer
-                update_time = 0.1
-                sample_time = 0.01
-                deployer = Deployer(problem, sample_time, update_time)
+                self.update_time = 0.1
+                self.sample_time = 0.01
+                self.deployer = Deployer(self.problem,self.sample_time,self.update_time)
                 
-                via_points = [[2., 2.]] 
+                self.via_points = [[2., 2.]] 
  
-                current_time = 0
-                current_state = [0, 0]#current_state = [-1.5, -1.5]
-                state_traj = np.c_[current_state]
+                self.current_time = 0
+                self.current_state = [0, 0]#self.current_state = [-1.5, -1.5]
+                state_traj = np.c_[self.current_state]
                 input_traj = np.c_[[0.0, 0.0]]
  
-                n_samp = int(np.round(update_time / sample_time, 6))
+                self.n_samp = int(np.round(self.update_time /self.sample_time, 6))
         
         def callback_state(self,state):
                 self.pose_x = state.pose[1].position.x
                 self.pose_y = state.pose[1].position.y
 #nog niet getest
-                euler = tf.transformations.euler_from_quaternion(state.pose[1].orientation.x,state.pose[1].orientation.y,state.pose[1].orientation.z,state.pose[1].orientation.w)
+                euler = tf.transformations.euler_from_quaternion((state.pose[1].orientation.x,state.pose[1].orientation.y,state.pose[1].orientation.z,state.pose[1].orientation.w))
                 self.th = euler[2]
                 self.vel_x=state.twist[1].linear.x
                 self.vel_y=state.twist[1].linear.y 
@@ -126,34 +130,39 @@ class ridgeback_omg_control:
                  # create environment
                 rospy.init_node('ridgeback_omg_control', anonymous=True) # initialize node 'ridgeback_control'
                 rate = rospy.Rate(100)  # 100hz publishing rate
-                environment = Environment(room={'shape': Rectangle(10., 5.)})
-                rectangle = Rectangle(width=3., height=0.2)
-                environment.add_obstacle(Obstacle({'position': [-2.1, 0.5]}, shape=rectangle))
-                environment.add_obstacle(Obstacle({'position': [1.7, 0.5]}, shape=rectangle))
+                
+                
                 #remove obstacles or load everything again, maybe do it every other iteration 
                 # Obstacle
-                read_x_speed=.15
-                read_y_speed=0.0
-         
+                rectangle = Rectangle(width=3., height=0.2)
+                self.environment.add_obstacle(Obstacle({'position': [-2.1, 0.5]}, shape=rectangle))
+                self.environment.add_obstacle(Obstacle({'position': [1.7, 0.5]}, shape=rectangle))
+                self.problem.init()
+                
                 # simulation of a motion planning application: go through 3 via points, while
                 # an obstacle is changing position
                 t00 = time.time()
-         
+                state_traj = np.c_[self.current_state]
+                input_traj = np.c_[[0.0, 0.0]]
+ 
                 target_reached = False
                 saved = True #dit is voor plottingpurposes
                 while not rospy.is_shutdown():
                         speed = Twist()  # make Twist object speed
-                        for via_point in (via_points):
-                                vehicle.set_terminal_conditions(via_point)
+                        for via_point in (self.via_points):
+                                self.vehicle.set_terminal_conditions(via_point)
                                 
-                                vehicle.set_initial_conditions(via_point)  # for init guess
-                                deployer.reset()  # let's start from new initial guess
+                                self.vehicle.set_initial_conditions(via_point)  # for init guess
+                                self.deployer.reset()  # let's start from new initial guess
                                 while not target_reached:
                                         #update time
                                         t0 = time.time() - t00
 ##                                      update position/ environment dit moet in tijdelijke variabelen want anders kan binnen 1 berekening de positie of environment verandere
-                                        
-                                        
+                                        #self.environment.obstacles=[]
+                                        print self.environment.obstacles[0]
+                                        #self.environment.obstacles=self.stat_obs+self.dyn_obstacles
+                                        print self.environment.obstacles
+                                        #time.sleep(5)
                                         #update all dynamic obstacles by deleting and adding because there is no updating
         #                               DELETE ALL EXISTING DYNAMIC OBSTACLES
         #                               for OBJ in dyn_obstacles:
@@ -172,22 +181,24 @@ class ridgeback_omg_control:
                                         
                                         
                                         
-                                        if (t0 - current_time - update_time) >= 0.:
-                                                current_time = t0
+                                        if (t0 - self.current_time -self.update_time) >= 0.:
+                                                self.current_time = t0
                                                 # 'measure' current state (here ideal trajectory following is simulated)
                                                 #if state_traj.shape[1] > 1:
-                                                        #current_state = state_traj[:, -n_samp - 1]
-                                                current_state = np.array([pose_x ,pose_y])
+                                                        #self.current_state = state_traj[:, -self.n_samp - 1]
+                                                self.current_state = np.array([self.pose_x ,self.pose_y])
                                                         
         #                                       else:
-        #                                               current_state = [pose_x, pose_y]
-                                                        #current_state = state_traj[:, 0]
+        #                                               self.current_state = [pose_x, pose_y]
+                                                        #self.current_state = state_traj[:, 0]
                                                 # update motion planning
-                                                trajectories = deployer.update(current_time, current_state)
+                                                print "print"
+                                                print self.deployer.problem.environment.obstacles
+                                                trajectories = self.deployer.update(self.current_time, self.current_state)
          
                                                 # store state & input trajectories -> simulation of ideal trajectory following
-                                                state_traj = np.c_[state_traj, trajectories['state'][:, 1:n_samp + 1]]
-                                                input_traj = np.c_[input_traj, trajectories['input'][:, 1:n_samp + 1]]
+                                                state_traj = np.c_[state_traj, trajectories['state'][:, 1:self.n_samp + 1]]
+                                                input_traj = np.c_[input_traj, trajectories['input'][:, 1:self.n_samp + 1]]
                                                 x_pos = state_traj[0, -1]
                                                 y_pos = state_traj[1, -1]
                                                 x_speed = input_traj[0, -1]
@@ -201,15 +212,16 @@ class ridgeback_omg_control:
                                                 rate.sleep()
         #                                       print state_traj[:, -1]
         #                                       print type (state_traj[:, -1])
-        #                                       print current_state
-        #                                       print type (current_state)
+        #                                       print self.current_state
+        #                                       print type (self.current_state)
         #                                       print via_point
                                                 # check target
-                                                if (np.linalg.norm(via_point - current_state) < 5e-2 ):#and np.linalg.norm(input_traj[:, -1]) < 5e-2): nog snelheidscheck maken
+                                                if (np.linalg.norm(via_point - self.current_state) < 5e-2 ):#and np.linalg.norm(input_traj[:, -1]) < 5e-2): nog snelheidscheck maken
                                                         
                                                         target_reached = True
                                                         print('Target reached, close enough!')
-                                                if (problem.iteration > 300):
+                                                        time.sleep(5)
+                                                if (self.problem.iteration > 300):
                                                         target_reached = True
                                                         print('Target reached, max iterations...')
          
@@ -223,14 +235,18 @@ class ridgeback_omg_control:
                                 np.savetxt('xspeed.csv', xspeed, delimiter=",")
                                 np.savetxt('yspeed.csv', yspeed, delimiter=",")
                                 saved = True
-         
+                        speed.linear.x = 0
+                        speed.linear.y = 0        
+                        rospy.loginfo(speed)
+                        pub.publish(speed)
+                        rate.sleep()      
         #       # spin() simply keeps python from exiting until this node is stopped
                 rospy.spin()
 
 
 if __name__ == '__main__':
         try:
-                ridgeback_omg_control()
+            ridgeback_omg_control().ridgeback_control()
         except rospy.ROSInterruptException:
                 pass
 
