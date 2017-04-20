@@ -77,11 +77,12 @@ class ridgeback_omg_control:
                 options = {}
                 options['codegen'] = {'build': None}
                 #initialize environment
-                self.environment = Environment(room={'shape': Rectangle(10., 5.)})
+                self.environment = Environment(room={'shape': Rectangle(20., 10.)})
                 rectangle = Rectangle(width=3., height=0.2)
-                self.stat_obs=[Obstacle({'position': [-3, 1.0]}, shape=rectangle),Obstacle({'position': [2, 1.0]}, shape=rectangle)]
+                self.stat_obs=[Obstacle({'position': [-5, 1.0]}, shape=rectangle),Obstacle({'position': [-4, 1.0]}, shape=rectangle)]
                 self.environment.add_obstacle(self.stat_obs)
                 
+   
                 # create a point-to-point problem
                 self.problem = Point2point(self.vehicle, self.environment, options, freeT=False)
                 self.problem.init()
@@ -92,7 +93,7 @@ class ridgeback_omg_control:
                 self.sample_time = 0.01
                 self.deployer = Deployer(self.problem,self.sample_time,self.update_time)
                 
-                self.via_points = [[2., 2.]] 
+                self.via_points = [[4., 4.]] 
  
                 self.current_time = 0
                 self.current_state = [0, 0]#self.current_state = [-1.5, -1.5]
@@ -156,6 +157,9 @@ class ridgeback_omg_control:
                                         #update time
                                         t0 = time.time() - t00
 ##                                      update position/ environment dit moet in tijdelijke variabelen want anders kan binnen 1 berekening de positie of environment verandere
+                                        print self.environment.obstacles[0].signals['position'][:,-1]
+                                        self.environment.obstacles[0].set_state({'position': [2.0, 2.0]})
+                                        print self.environment.obstacles[0].signals['position'][:,-1]
                                         #self.environment.obstacles=[]
    #                                     print self.environment.obstacles[0]
                                         #self.environment.obstacles=self.stat_obs+self.dyn_obstacles
