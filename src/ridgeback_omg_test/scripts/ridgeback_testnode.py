@@ -47,6 +47,7 @@ import numpy as np
 from cv2 import circle
 from mercurial.bundlerepo import instance
 import tf
+#from ridgeback_omg_test.msg import obstacleMsg, obstacleMsg_vector
 pub = rospy.Publisher('cmd_vel', Twist, queue_size=1000)  # Publisher('topic', 'topic type', queue_size)
 speed = Twist()
 state = ModelStates()
@@ -62,7 +63,8 @@ class ridgeback_omg_control:
         def __init__(self):
                 self.pose_x=0.0
                 self.pose_y=0.0
-                self.dyn_obstacles=[]
+                self.dyn_msg=0
+                self.dyn_obstacles=[1]
                 self.subscriber_pos = rospy.Subscriber('/gazebo/model_states', ModelStates, self.callback_state) # Subscriber('topic', 'message type', callback)
                 self.subscriber_obs = rospy.Subscriber('obstacle_pose',std_msgs.msg.Float32MultiArray,self.callback_dynamic)
                 
@@ -101,7 +103,7 @@ class ridgeback_omg_control:
                 input_traj = np.c_[[0.0, 0.0]]
  
                 self.n_samp = int(np.round(self.update_time /self.sample_time, 6))
-        
+                self.i=0
         def callback_state(self,state):
                 self.pose_x = state.pose[1].position.x
                 self.pose_y = state.pose[1].position.y
@@ -114,10 +116,14 @@ class ridgeback_omg_control:
                 
         def callback_dynamic(self,dyn_obs):
                 #msg.data = np.array([xc, yc, radius, x_est_k[1][0], x_est_k[3][0]])
-        
+                
                 self.dyn_obstacles=[]
                 for obs in dyn_obs:
-                        self.dyn_obstacles.append(circle_obs(dyn_obs[0],dyn_obs[1],dyn_obs[2],dyn_obs[3],dyn_obs[4]))
+                        if obs[0]=='cylinder':
+                            self.dyn_obstacles.append(circle_obs(obs[1],obs[2],obs[3],obs[4],obs[5]))
+                        else:
+                            pass
+                self.dyn_msg=1 #boolean to see if we need to update the obstacles in the loop, improve time
                 #environment updaten in lus zelf
                         
                 
@@ -158,7 +164,7 @@ class ridgeback_omg_control:
                                         t0 = time.time() - t00
 ##                                      update position/ environment dit moet in tijdelijke variabelen want anders kan binnen 1 berekening de positie of environment verandere
                                         print self.environment.obstacles[0].signals['position'][:,-1]
-                                        self.environment.obstacles[0].set_state({'position': [2.0, 2.0]})
+
                                         print self.environment.obstacles[0].signals['position'][:,-1]
                                         #self.environment.obstacles=[]
    #                                     print self.environment.obstacles[0]
@@ -180,9 +186,18 @@ class ridgeback_omg_control:
         #                                       
         #                               environment.obstacles.pop() #laatste is het dynamische obstakel, voorlopig nog maar 1 dynamisch
         #                               time.sleep(5)
-
+                                        self.dyn_obstacles[0]=circle_obs(20.,20.,.1,0.,0.)
                                         if (t0 - self.current_time -self.update_time) >= 0.:
                                                 self.current_time = t0
+                                                self.i=self.i+1
+                                                #if self.dyn_msg==1:   
+                                                              #then update dyn_obs else no message has been sent
+                                                if self.i==8:
+                                                    for obs in self.dyn_obstacles:
+                                                        obs.shape=Circle(10000.)
+                                                        #self.environment.obstacles[0].set_state({'position': [2.0, 2.0]})
+                                                self.dyn_msg=0  #Set boolean to zero after update
+                                                print self.i             
                                                 # 'measure' current state (here ideal trajectory following is simulated)
                                                 #if state_traj.shape[1] > 1:
                                                         #self.current_state = state_traj[:, -self.n_samp - 1]
